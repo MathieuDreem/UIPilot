@@ -4,7 +4,7 @@ import Combine
 public class UIPilot<T: Equatable>: ObservableObject {
 
     private let logger: Logger
-    private let viewGenerator = PathViewGenerator<T>()
+    private let viewGenerator: PathViewGenerator<T>
 
     @Published var paths: [UIPilotPath<T>] = []
 
@@ -12,7 +12,8 @@ public class UIPilot<T: Equatable>: ObservableObject {
         return paths.map { $0.route }
     }
 
-    public init(initial: T, debug: Bool = false) {
+    public init(initial: T, debug: Bool = false, hideNavigationBar: Bool = false) {
+        self.viewGenerator = PathViewGenerator<T>(hideNavigationBar: hideNavigationBar)
         logger = debug ? DebugLog() : EmptyLog()
         logger.log("UIPilot - Pilot Initialized.")
 
@@ -80,11 +81,13 @@ struct UIPilotPath<T: Equatable>: Equatable, Hashable {
 
 struct PathView: View {
     private let content: AnyView
+    private let hideNavigationBar: Bool
     @ObservedObject var state: PathViewState
 
-    public init(_ content: AnyView, state: PathViewState) {
+    public init(_ content: AnyView, state: PathViewState, hideNavigationBar: Bool = false) {
         self.content = content
         self.state = state
+        self.hideNavigationBar = hideNavigationBar
     }
 
     var body: some View {
@@ -96,6 +99,9 @@ struct PathView: View {
             .isDetailLink(false)
 #endif
             content
+#if os(iOS)
+            .navigationBarHidden(self.hideNavigationBar)
+#endif
         }
     }
 }
@@ -127,8 +133,13 @@ class PathViewState: ObservableObject {
 
 class PathViewGenerator<T: Equatable> {
 
+    private let hideNavigationBar: Bool
     var onPop: ((UIPilotPath<T>) -> Void)?
 
+    init(hideNavigationBar: Bool = false) {
+        self.hideNavigationBar = hideNavigationBar
+    }
+    
     func generate(_ paths: [UIPilotPath<T>], _ routeMap: RouteMap<T>, _ pathViews: [UIPilotPath<T>: PathView]) -> (PathView?, [UIPilotPath<T>: PathView]) {
         var pathViews = recycleViews(paths, pathViews: pathViews)
 
@@ -137,7 +148,11 @@ class PathViewGenerator<T: Equatable> {
             var content = pathViews[path]
 
             if content == nil {
-                pathViews[path] = PathView(routeMap(path.route), state: PathViewState())
+                pathViews[path] = PathView(
+                    routeMap(path.route),
+                    state: PathViewState(),
+                    hideNavigationBar: hideNavigationBar
+                )
                 content = pathViews[path]
             }
 
