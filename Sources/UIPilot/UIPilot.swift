@@ -1,6 +1,8 @@
 import SwiftUI
 import Combine
 
+public typealias DestinationsWithTheirPaths<T> = [(T,[T])]
+
 public class UIPilot<T: Equatable>: ObservableObject {
 
     private let logger: Logger
@@ -30,6 +32,30 @@ public class UIPilot<T: Equatable>: ObservableObject {
     public func push(_ route: T) {
         logger.log("UIPilot - Pushing \(route) route.")
         self.paths.append(UIPilotPath(route: route))
+    }
+    
+    public func pushURL(
+        _ url: URL,
+        urlGuard: (URL) -> Bool = { _ in true },
+        routeAndUrlMatcher: (URL, T) -> Bool,
+        destinations: DestinationsWithTheirPaths<T>
+    ) {
+        guard urlGuard(url) else { return }
+        destinations.forEach { path in
+            let destination = path.0
+            let pathViews = path.1
+            if routeAndUrlMatcher(url, destination) {
+                if !pathViews.isEmpty {
+                    paths = []
+                    paths = pathViews.map {
+                        logger.log("UIPilot - Adding \($0) route to pathsViews.")
+                        return UIPilotPath(route: $0)
+                    }.reversed()
+                }
+                push(destination)
+                return
+            }
+        }
     }
 
     public func pop() {
