@@ -65,7 +65,7 @@ public class UIPilot<T: Equatable>: ObservableObject {
         }
     }
 
-    public func popTo(_ route: T, inclusive: Bool = false) {
+    public func popTo(_ route: T) {
         logger.log("UIPilot: Popping route \(route).")
 
         if paths.isEmpty {
@@ -73,16 +73,15 @@ public class UIPilot<T: Equatable>: ObservableObject {
             return
         }
 
-        guard var found = paths.firstIndex(where: { $0.route == route }) else {
-            logger.log("UIPilot - Route not found.")
-            return
+        let found = paths.firstIndex(where: { $0.route == route })
+        
+        if found == nil {
+            var mirrorPaths = paths
+            mirrorPaths.insert(UIPilotPath(route: route), at: 0)
+            paths = mirrorPaths
         }
-
-        if !inclusive {
-            found += 1
-        }
-
-        let numToPop = (found..<paths.endIndex).count
+        
+        let numToPop = paths.endIndex - 1 - (found ?? 0)
         logger.log("UIPilot - Popping \(numToPop) routes")
         paths.removeLast(numToPop)
     }
